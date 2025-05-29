@@ -1,143 +1,103 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Pack Test Tracker</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-      background-color: #eef2f3;
-    }
-    h1 {
-      color: #333;
-    }
-    #stats {
-      margin: 20px 0;
-    }
-    .stat {
-      font-size: 1.4em;
-      margin: 10px 0;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 1.2em;
-      margin: 10px;
-      background-color: teal;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    button:disabled {
-      background-color: gray;
-    }
-  </style>
-</head>
-<body>
-  <h1>Pack Test Tracker</h1>
-  <div id="stats">
-    <div class="stat">Distance: <span id="distance">0.00</span> mi</div>
-    <div class="stat">Time: <span id="time">00:00</span></div>
-    <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
-    <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
-  </div>
-  <button id="startBtn">Start Test</button>
-  <button id="stopBtn" disabled>Stop Test</button>
+<script>
+  let watchId;
+  let startTime;
+  let totalDistance = 0;
+  let lastPosition = null;
+  let timerInterval = null;
 
-  <script>
-    let watchId;
-    let startTime;
-    let totalDistance = 0;
-    let lastPosition = null;
+  const distanceEl = document.getElementById("distance");
+  const timeEl = document.getElementById("time");
+  const paceEl = document.getElementById("pace");
+  const estimateEl = document.getElementById("estimate");
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
 
-    const distanceEl = document.getElementById("distance");
-    const timeEl = document.getElementById("time");
-    const paceEl = document.getElementById("pace");
-    const estimateEl = document.getElementById("estimate");
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
-
-    startBtn.onclick = () => {
-      console.log("✅ Start button clicked.");
-      if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your browser.");
-        return;
-      }
-
-      startTime = Date.now();
-      totalDistance = 0;
-      lastPosition = null;
-      updateTime();
-      
-      watchId = navigator.geolocation.watchPosition(
-        updatePosition,
-        (err) => {
-          console.error("❌ GPS Error:", err);
-          alert("Location access denied or error: " + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-    };
-
-    stopBtn.onclick = () => {
-      console.log("🛑 Stop button clicked.");
-      navigator.geolocation.clearWatch(watchId);
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    };
-
-    function updateTime() {
-      if (!startTime) return;
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-      const secs = (elapsed % 60).toString().padStart(2, '0');
-      timeEl.textContent = `${mins}:${secs}`;
-      if (startBtn.disabled) setTimeout(updateTime, 1000);
+  startBtn.onclick = () => {
+    console.log("✅ Start button clicked.");
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported by your browser.");
+      return;
     }
 
-    function updatePosition(pos) {
-      const { latitude, longitude } = pos.coords;
-      console.log(`📍 GPS: ${latitude}, ${longitude}`);
-      const currentTime = Date.now();
+    startTime = Date.now();
+    totalDistance = 0;
+    lastPosition = null;
 
-      if (lastPosition) {
-        const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
+    updateTime(); // Show 00:00
+    timerInterval = setInterval(updateTime, 1000); // Now continuously update
+
+    watchId = navigator.geolocation.watchPosition(
+      updatePosition,
+      (err) => {
+        console.error("❌ GPS Error:", err);
+        alert("Location access denied or error: " + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+  };
+
+  stopBtn.onclick = () => {
+    console.log("🛑 Stop button clicked.");
+    navigator.geolocation.clearWatch(watchId);
+    clearInterval(timerInterval); // stop timer
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  };
+
+  function updateTime() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const secs = (elapsed % 60).toString().padStart(2, '0');
+    timeEl.textContent = `${mins}:${secs}`;
+  }
+
+  function updatePosition(pos) {
+    const { latitude, longitude } = pos.coords;
+    const currentTime = Date.now();
+
+    console.log(`📍 GPS: ${latitude}, ${longitude}`);
+
+    if (lastPosition) {
+      const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
+      if (d > 0.0001) { // ignore jitter
         totalDistance += d;
       }
+    }
 
-      lastPosition = { lat: latitude, lon: longitude };
-      distanceEl.textContent = totalDistance.toFixed(2);
+    lastPosition = { lat: latitude, lon: longitude };
+    distanceEl.textContent = totalDistance.toFixed(2);
 
-      const elapsed = (currentTime - startTime) / 1000 / 60;
-      const pace = totalDistance > 0 ? (elapsed / totalDistance).toFixed(2) : "--";
+    const elapsed = (currentTime - startTime) / 1000 / 60;
+    if (totalDistance >= 0.05) {
+      const pace = (elapsed / totalDistance).toFixed(2);
       paceEl.textContent = pace;
 
-      const estimate = totalDistance > 0 ? (3 * (elapsed / totalDistance)) : 0;
+      const estimate = 3 * (elapsed / totalDistance);
       const estMins = Math.floor(estimate).toString().padStart(2, '0');
       const estSecs = Math.floor((estimate % 1) * 60).toString().padStart(2, '0');
-      estimateEl.textContent = totalDistance > 0 ? `${estMins}:${estSecs}` : "--:--";
+      estimateEl.textContent = `${estMins}:${estSecs}`;
+    } else {
+      paceEl.textContent = "--";
+      estimateEl.textContent = "--:--";
     }
+  }
 
-    function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
-      const R = 3958.8;
-      const dLat = deg2rad(lat2 - lat1);
-      const dLon = deg2rad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
+  function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
+    const R = 3958.8;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
-    function deg2rad(deg) {
-      return deg * (Math.PI / 180);
-    }
-  </script>
-</body>
-</html>
+  function deg2rad(deg) {
+    return deg * (Math.PI / 180);
+  }
+</script>
