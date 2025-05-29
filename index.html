@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pack Test Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+      background-color: #eef2f3;
+    }
+    h1 {
+      color: #333;
+    }
+    #stats {
+      margin: 20px 0;
+    }
+    .stat {
+      font-size: 1.4em;
+      margin: 10px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 1.2em;
+      margin: 10px;
+      background-color: teal;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: gray;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pack Test Tracker</h1>
+  <div id="stats">
+    <div class="stat">Distance: <span id="distance">0.00</span> mi</div>
+    <div class="stat">Time: <span id="time">00:00</span></div>
+    <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
+    <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
+  </div>
+  <button id="startBtn">Start Test</button>
+  <button id="stopBtn" disabled>Stop Test</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
