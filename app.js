@@ -15,18 +15,19 @@ const distanceDisplay = document.getElementById('distance');
 const lapsDisplay = document.getElementById('laps');
 const runnerDot = document.getElementById('runnerDot');
 
+// ✅ WORKING Start/Stop toggle logic
 startBtn.addEventListener('click', () => {
   if (!isRunning) {
-    startTracking();
+    beginTracking(); // ✅ correct name
     startBtn.textContent = "Stop";
   } else {
-    stopTracking();
+    endTracking(); // ✅ correct name
     startBtn.textContent = "Start";
   }
   isRunning = !isRunning;
 });
 
-function startTracking() {
+function beginTracking() {
   startTime = Date.now();
   distance = 0;
   laps = 0;
@@ -46,7 +47,7 @@ function startTracking() {
   updateTimer();
 }
 
-function stopTracking() {
+function endTracking() {
   navigator.geolocation.clearWatch(watchID);
 }
 
