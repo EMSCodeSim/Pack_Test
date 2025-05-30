@@ -15,13 +15,49 @@ body {
   box-shadow: 0 0 10px rgba(0,0,0,0.2);
 }
 
-.status p {
+.status p,
+.status label {
   margin: 10px 0;
-  font-size: 1.2em;
+  font-size: 1.1em;
+}
+
+.status input {
+  width: 60px;
+  font-size: 1em;
+  margin-bottom: 10px;
 }
 
 button {
   margin: 10px;
   padding: 12px 20px;
   font-size: 1em;
+}
+
+.pacer-bar {
+  position: relative;
+  width: 100%;
+  height: 30px;
+  margin: 20px auto;
+  background-color: #ddd;
+  border-radius: 15px;
+  max-width: 360px;
+}
+
+.pacer-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background-color: #000;
+  z-index: 2;
+}
+
+#pacerRunner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 3;
+  font-size: 24px;
 }
