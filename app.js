@@ -23,6 +23,21 @@ const lapText = document.getElementById('lapText');
 
 toggleBtn.onclick = () => {
   if (!isRunning) {
+    // Start test
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your device.");
+      return;
+    }
+
+    // Permission check (some iOS versions)
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+        if (result.state === 'denied') {
+          alert("Location access is denied. Enable it in Settings > Safari > Location.");
+        }
+      });
+    }
+
     startTime = Date.now();
     distance = 0;
     laps = 0;
@@ -30,14 +45,23 @@ toggleBtn.onclick = () => {
     isRunning = true;
     toggleBtn.textContent = "Stop Test";
 
-    watchID = navigator.geolocation.watchPosition(handlePosition, console.error, {
-      enableHighAccuracy: true,
-      maximumAge: 1000,
-      timeout: 10000
-    });
+    watchID = navigator.geolocation.watchPosition(
+      handlePosition,
+      (err) => {
+        isRunning = false;
+        toggleBtn.textContent = "Start Test";
+        alert("Geolocation error: " + err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 1000,
+        timeout: 10000
+      }
+    );
 
     updateTimer();
   } else {
+    // Stop test
     navigator.geolocation.clearWatch(watchID);
     isRunning = false;
     toggleBtn.textContent = "Start Test";
