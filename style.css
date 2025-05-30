@@ -1,40 +1,58 @@
 body {
-  font-family: Arial, sans-serif;
-  text-align: center;
+  font-family: sans-serif;
   margin: 0;
   padding: 0;
-  background: #f0f4f8;
+  background: #e7f2f8;
+  color: #333;
 }
 
 .container {
   max-width: 500px;
   margin: auto;
-  padding: 1rem;
+  padding: 10px;
+  text-align: center;
 }
 
 button {
-  font-size: 1.5rem;
-  padding: 1rem 2rem;
-  margin: 1rem;
-  background-color: #28a745;
+  font-size: 1.5em;
+  padding: 10px 20px;
+  margin: 15px;
+  background: #007BFF;
   color: white;
   border: none;
-  border-radius: 12px;
-  cursor: pointer;
+  border-radius: 10px;
 }
 
-button:hover {
-  background-color: #218838;
+.status p {
+  font-size: 1.2em;
+  margin: 5px 0;
 }
 
-#status p {
-  font-size: 1.25rem;
-  margin: 0.5rem 0;
+svg {
+  margin-top: 10px;
 }
 
-.track {
-  width: 100%;
-  max-width: 400px;
-  height: auto;
-  margin-top: 1rem;
+.progressBar {
+  background: #ccc;
+  border-radius: 20px;
+  overflow: hidden;
+  margin: 15px;
+  height: 25px;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: #4caf50;
+  width: 0%;
+  transition: width 0.5s;
+}
+
+.progressText {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: black;
+  font-weight: bold;
 }
