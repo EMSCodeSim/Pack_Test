@@ -5,6 +5,8 @@ let previousCoords = null;
 let goalTime = 45;
 const totalDistanceGoal = 3.0;
 const totalLaps = 12;
+let paceSamples = [];
+let timerRunning = false;
 
 const timeEl = document.getElementById("time");
 const paceEl = document.getElementById("pace");
@@ -24,12 +26,14 @@ function startTest() {
   totalDistance = 0;
   lapCount = 0;
   previousCoords = null;
+  paceSamples = [];
   startTime = Date.now();
+  timerRunning = true;
   updateTimer();
   watchId = navigator.geolocation.watchPosition(updatePosition, showError, {
     enableHighAccuracy: true,
     maximumAge: 1000,
-    timeout: 10000,
+    timeout: 5000,
   });
 
   // Map setup
@@ -48,20 +52,22 @@ function startTest() {
 
 function stopTest() {
   navigator.geolocation.clearWatch(watchId);
+  timerRunning = false;
   document.getElementById("startBtn").disabled = false;
   document.getElementById("stopBtn").disabled = true;
 }
 
 function updateTimer() {
+  if (!timerRunning) return;
   const elapsed = (Date.now() - startTime) / 1000;
   const mins = Math.floor(elapsed / 60);
   const secs = Math.floor(elapsed % 60);
   timeEl.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  if (watchId != null) setTimeout(updateTimer, 1000);
+  setTimeout(updateTimer, 1000);
 }
 
 function updatePosition(pos) {
-  const { latitude, longitude } = pos.coords;
+  const { latitude, longitude, speed } = pos.coords;
 
   if (previousCoords) {
     const distance = getDistanceFromLatLonInMi(
@@ -70,13 +76,14 @@ function updatePosition(pos) {
       latitude,
       longitude
     );
+    if (distance < 0.0019) return; // ~10 feet, ignore small drift
     totalDistance += distance;
     if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
   }
 
   previousCoords = { latitude, longitude };
 
-  // Update Leaflet map
+  // Map
   if (window.map) {
     window.map.setView([latitude, longitude]);
     if (!window.userMarker) {
@@ -86,15 +93,29 @@ function updatePosition(pos) {
     }
   }
 
-  // UI updates
-  const elapsed = (Date.now() - startTime) / 1000 / 60;
-  const pace = totalDistance > 0 ? elapsed / totalDistance : 0;
-  const estFinish = pace * totalDistanceGoal;
+  // Time and pace
+  const elapsedMin = (Date.now() - startTime) / 1000 / 60;
+
+  let currentPace;
+  if (speed && speed > 0) {
+    // speed in m/s → pace in min/mile
+    currentPace = 26.8224 / speed;
+  } else {
+    currentPace = totalDistance > 0 ? elapsedMin / totalDistance : 0;
+  }
+
+  // Smooth pace over 5 samples
+  paceSamples.push(currentPace);
+  if (paceSamples.length > 5) paceSamples.shift();
+  const avgPace = paceSamples.reduce((a, b) => a + b, 0) / paceSamples.length;
+  paceEl.textContent = avgPace.toFixed(2);
+
+  const estFinish = avgPace * totalDistanceGoal;
   const estMin = Math.floor(estFinish);
   const estSec = Math.floor((estFinish % 1) * 60);
   estimateText.textContent = `Est. Finish: ${estMin}:${String(estSec).padStart(2, "0")}`;
 
-  // Pacer dot
+  // Pacer dot logic (right of center = ahead)
   const goalCenter = 50;
   const deviation = (estFinish - goalTime) / goalTime;
   const positionOffset = deviation * 50;
@@ -102,22 +123,20 @@ function updatePosition(pos) {
   progressIcon.style.left = `${leftPercent}%`;
 
   // Progress bars
-  lapsEl.textContent = `${lapCount}`;
   distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
   lapLabel.textContent = `${lapCount} / 12 laps`;
+  lapsEl.textContent = `${lapCount}`;
   distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
   lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
-
-  paceEl.textContent = pace > 0 ? pace.toFixed(2) : "--";
 }
 
 function showError(err) {
   alert("GPS error: " + err.message);
 }
 
-// Haversine formula
+// Haversine
 function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
-  const R = 3958.8; // miles
+  const R = 3958.8;
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
   const a =
