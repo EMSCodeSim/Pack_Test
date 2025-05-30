@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pack Test Tracker - Visual Pace</title>
+  <title>Pack Test Tracker - Laps & Pace Visual</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Leaflet CSS for map display -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
@@ -15,19 +16,38 @@
     h1 {
       color: #333;
     }
-    #stats, #goalInput {
+    #goalInput, #stats {
       margin: 20px 0;
     }
     .stat {
       font-size: 1.4em;
       margin: 10px 0;
     }
-    #map {
-      height: 300px;
-      margin: 20px 0;
-      border: 2px solid #444;
-      border-radius: 10px;
+    /* Lap progress bar (0 to 12 laps) */
+    #lap-bar-container {
+      position: relative;
+      height: 30px;
+      margin: 20px auto;
+      width: 90%;
+      background-color: #ccc;
+      border-radius: 15px;
+      overflow: hidden;
     }
+    #lap-bar-fill {
+      height: 100%;
+      background-color: #4caf50;
+      width: 0%;
+      transition: width 0.5s;
+    }
+    #lap-label {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 3px;
+      font-size: 1.2em;
+      color: white;
+    }
+    /* Pace visual bar */
     #pace-visual {
       position: relative;
       height: 60px;
@@ -35,6 +55,7 @@
       background: linear-gradient(to right, #eef2f3 50%, #ccc 50%);
       border-top: 3px solid #444;
     }
+    /* Target marker fixed in center */
     #goal-line {
       position: absolute;
       top: 0;
@@ -43,6 +64,7 @@
       height: 40px;
       background: red;
     }
+    /* Pacer dot */
     #progress-icon {
       position: absolute;
       top: -10px;
@@ -52,6 +74,7 @@
       border-radius: 50%;
       border: 2px solid white;
     }
+    /* Estimated finish time text centered under pace bar */
     #estimate-text {
       position: absolute;
       top: 42px;
@@ -59,28 +82,12 @@
       font-size: 1em;
       color: #333;
     }
-    #distance-bar-container {
-      position: relative;
-      height: 30px;
-      margin: 20px auto;
-      width: 90%;
-      background-color: #ccc;
-      border-radius: 15px;
-      overflow: hidden;
-    }
-    #distance-bar-fill {
-      height: 100%;
-      background-color: teal;
-      width: 0%;
-      transition: width 0.5s;
-    }
-    #distance-label {
-      position: absolute;
-      width: 100%;
-      text-align: center;
-      top: 3px;
-      font-size: 1.2em;
-      color: white;
+    /* Map styling */
+    #map {
+      height: 300px;
+      margin: 20px 0;
+      border: 2px solid #444;
+      border-radius: 10px;
     }
     button {
       padding: 10px 20px;
@@ -99,33 +106,39 @@
 <body>
   <h1>Pack Test Tracker</h1>
 
+  <!-- Goal finish time input -->
   <div id="goalInput">
     <label for="goalTime">Enter goal finish time (minutes):</label>
     <input type="number" id="goalTime" value="45" min="1" style="width: 60px;">
   </div>
 
+  <!-- Basic stats (time, pace, laps) -->
   <div id="stats">
     <div class="stat">Time: <span id="time">00:00</span></div>
     <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
-    <div class="stat">Laps (0.25 mi): <span id="laps">0</span></div>
+    <div class="stat">Laps: <span id="laps">0</span> (each lap is 0.25 mi)</div>
   </div>
 
-  <div id="distance-bar-container">
-    <div id="distance-bar-fill"></div>
-    <div id="distance-label">0.00 / 3.00 mi</div>
+  <!-- Laps progress bar (0 to 12 laps = 3.00 mi) -->
+  <div id="lap-bar-container">
+    <div id="lap-bar-fill"></div>
+    <div id="lap-label">0 / 12 laps</div>
   </div>
 
+  <!-- Pace visual bar: moving pacer dot and estimated finish time -->
   <div id="pace-visual">
     <div id="goal-line"></div>
     <div id="progress-icon"></div>
     <div id="estimate-text">Est. Finish: --:--</div>
   </div>
 
+  <!-- Map container -->
   <div id="map"></div>
 
   <button id="startBtn">Start Test</button>
   <button id="stopBtn" disabled>Stop Test</button>
 
+  <!-- Leaflet JS for map functionality -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     let watchId, startTime, totalDistance = 0, lapCount = 0, lastPosition = null, timerInterval = null;
@@ -140,8 +153,8 @@
     const goalInput = document.getElementById("goalTime");
     const progressIcon = document.getElementById("progress-icon");
     const estimateText = document.getElementById("estimate-text");
-    const distanceLabel = document.getElementById("distance-label");
-    const distanceFill = document.getElementById("distance-bar-fill");
+    const lapLabel = document.getElementById("lap-label");
+    const lapBarFill = document.getElementById("lap-bar-fill");
 
     function initMap(lat, lon) {
       map = L.map('map').setView([lat, lon], 17);
@@ -164,6 +177,9 @@
       lapCount = 0;
       lastPosition = null;
       pathCoords.length = 0;
+      updateLapBar(); // reset lap progress
+
+      // Remove previous map if any
       if (map) map.remove();
       document.getElementById('map').innerHTML = "";
 
@@ -203,17 +219,21 @@
       const currentTime = Date.now();
 
       if (lastPosition) {
+        // Calculate incremental distance in miles using Haversine formula
         const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
         if (d > 0.0001) {
           totalDistance += d;
-          if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
+          if (totalDistance >= (lapCount + 1) * 0.25) {
+            lapCount = Math.min(12, lapCount + 1); // do not exceed 12 laps (3.0 mi)
+          }
+          updateLapBar();
         }
       }
 
       lastPosition = { lat: latitude, lon: longitude };
       lapsEl.textContent = lapCount;
 
-      const elapsed = (currentTime - startTime) / 1000 / 60;
+      const elapsed = (currentTime - startTime) / 1000 / 60; // elapsed time in minutes
       let pace = "--", est = "--:--";
 
       if (totalDistance >= 0.05) {
@@ -229,8 +249,6 @@
 
       paceEl.textContent = pace;
       estimateText.textContent = "Est. Finish: " + est;
-      distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 mi`;
-      distanceFill.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
 
       if (map) {
         const latlng = [latitude, longitude];
@@ -241,12 +259,23 @@
     }
 
     function updatePaceVisual(estimate) {
+      // Calculate percent position relative to goalTime
+      // If estimate equals goalTime, icon stays in the middle (50%)
+      // If estimate is lower (faster pace), icon moves right (>50%)
+      // If estimate is higher (slower pace), icon moves left (<50%)
       const percent = Math.max(0, Math.min(100, 50 + ((goalTime - estimate) / goalTime) * 50));
       progressIcon.style.left = `calc(${percent}% - 10px)`;
     }
 
+    function updateLapBar() {
+      // There are 12 laps total for 3.00 miles
+      const lapPercent = Math.min(100, (lapCount / 12) * 100);
+      lapBarFill.style.width = lapPercent + "%";
+      lapLabel.textContent = `${lapCount} / 12 laps`;
+    }
+
     function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
-      const R = 3958.8;
+      const R = 3958.8; // Radius of the earth in miles
       const dLat = deg2rad(lat2 - lat1);
       const dLon = deg2rad(lon2 - lon1);
       const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
