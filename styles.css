@@ -53,6 +53,18 @@ button {
   z-index: 2;
 }
 
+.pacer-green-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 25px);
+  width: 50px;
+  background-color: #aaffaa;
+  opacity: 0.6;
+  z-index: 1;
+  border-radius: 15px;
+}
+
 #pacerRunner {
   position: absolute;
   top: 0;
@@ -60,4 +72,13 @@ button {
   transform: translate(-50%, 0);
   z-index: 3;
   font-size: 24px;
+}
+
+.progress-bars {
+  margin-top: 20px;
+}
+
+progress {
+  width: 90%;
+  height: 20px;
 }
