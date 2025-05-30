@@ -31,6 +31,17 @@ function startTest() {
     maximumAge: 1000,
     timeout: 10000,
   });
+
+  // Map setup
+  if (!window.mapInitialized) {
+    const map = L.map('map').setView([0, 0], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    window.map = map;
+    window.mapInitialized = true;
+  }
+
   document.getElementById("startBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
 }
@@ -46,11 +57,12 @@ function updateTimer() {
   const mins = Math.floor(elapsed / 60);
   const secs = Math.floor(elapsed % 60);
   timeEl.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  if (watchId) setTimeout(updateTimer, 1000);
+  if (watchId != null) setTimeout(updateTimer, 1000);
 }
 
 function updatePosition(pos) {
   const { latitude, longitude } = pos.coords;
+
   if (previousCoords) {
     const distance = getDistanceFromLatLonInMi(
       previousCoords.latitude,
@@ -61,9 +73,20 @@ function updatePosition(pos) {
     totalDistance += distance;
     if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
   }
+
   previousCoords = { latitude, longitude };
 
-  // Update UI
+  // Update Leaflet map
+  if (window.map) {
+    window.map.setView([latitude, longitude]);
+    if (!window.userMarker) {
+      window.userMarker = L.marker([latitude, longitude]).addTo(window.map);
+    } else {
+      window.userMarker.setLatLng([latitude, longitude]);
+    }
+  }
+
+  // UI updates
   const elapsed = (Date.now() - startTime) / 1000 / 60;
   const pace = totalDistance > 0 ? elapsed / totalDistance : 0;
   const estFinish = pace * totalDistanceGoal;
@@ -71,21 +94,20 @@ function updatePosition(pos) {
   const estSec = Math.floor((estFinish % 1) * 60);
   estimateText.textContent = `Est. Finish: ${estMin}:${String(estSec).padStart(2, "0")}`;
 
-  // Pace dot logic
+  // Pacer dot
   const goalCenter = 50;
-  const deviation = (goalTime - estFinish) / goalTime;
-  const positionOffset = deviation * 50; // max ±50%
-  const leftPercent = Math.min(100, Math.max(0, goalCenter - positionOffset));
+  const deviation = (estFinish - goalTime) / goalTime;
+  const positionOffset = deviation * 50;
+  const leftPercent = Math.min(100, Math.max(0, goalCenter + positionOffset));
   progressIcon.style.left = `${leftPercent}%`;
 
-  // Update bars
+  // Progress bars
   lapsEl.textContent = `${lapCount}`;
   distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
   lapLabel.textContent = `${lapCount} / 12 laps`;
   distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
   lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
 
-  // Update pace
   paceEl.textContent = pace > 0 ? pace.toFixed(2) : "--";
 }
 
