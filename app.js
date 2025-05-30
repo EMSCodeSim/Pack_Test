@@ -4,7 +4,6 @@ let lapCount = 0;
 let previousCoords = null;
 let goalTime = 45;
 const totalDistanceGoal = 3.0;
-const totalLaps = 12;
 let paceSamples = [];
 let timerRunning = false;
 
@@ -25,20 +24,20 @@ function startTest() {
   goalTime = parseFloat(document.getElementById("goalTime").value) || 45;
   totalDistance = 0;
   lapCount = 0;
-  previousCoords = null;
   paceSamples = [];
+  previousCoords = null;
   startTime = Date.now();
   timerRunning = true;
   updateTimer();
+
   watchId = navigator.geolocation.watchPosition(updatePosition, showError, {
     enableHighAccuracy: true,
     maximumAge: 1000,
     timeout: 5000,
   });
 
-  // Map setup
   if (!window.mapInitialized) {
-    const map = L.map('map').setView([0, 0], 13);
+    const map = L.map('map').setView([0, 0], 17);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
@@ -70,42 +69,38 @@ function updatePosition(pos) {
   const { latitude, longitude, speed } = pos.coords;
 
   if (previousCoords) {
-    const distance = getDistanceFromLatLonInMi(
-      previousCoords.latitude,
-      previousCoords.longitude,
-      latitude,
-      longitude
-    );
-    if (distance < 0.0019) return; // ~10 feet, ignore small drift
-    totalDistance += distance;
+    const d = getDistanceFromLatLonInMi(previousCoords.latitude, previousCoords.longitude, latitude, longitude);
+    if (d < 0.0019) return; // ignore small drift under 10 feet
+    totalDistance += d;
     if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
   }
 
   previousCoords = { latitude, longitude };
 
-  // Map
+  // Update map
   if (window.map) {
-    window.map.setView([latitude, longitude]);
+    const latlng = [latitude, longitude];
+    window.map.setView(latlng);
     if (!window.userMarker) {
-      window.userMarker = L.marker([latitude, longitude]).addTo(window.map);
+      window.userMarker = L.marker(latlng).addTo(window.map);
     } else {
-      window.userMarker.setLatLng([latitude, longitude]);
+      window.userMarker.setLatLng(latlng);
     }
   }
 
-  // Time and pace
-  const elapsedMin = (Date.now() - startTime) / 1000 / 60;
+  // Update visuals after 0.02 mi
+  if (totalDistance < 0.02) return;
 
-  let currentPace;
+  const elapsedMin = (Date.now() - startTime) / 60000;
+  let pace;
+
   if (speed && speed > 0) {
-    // speed in m/s → pace in min/mile
-    currentPace = 26.8224 / speed;
+    pace = 26.8224 / speed; // m/s to min/mile
   } else {
-    currentPace = totalDistance > 0 ? elapsedMin / totalDistance : 0;
+    pace = elapsedMin / totalDistance;
   }
 
-  // Smooth pace over 5 samples
-  paceSamples.push(currentPace);
+  paceSamples.push(pace);
   if (paceSamples.length > 5) paceSamples.shift();
   const avgPace = paceSamples.reduce((a, b) => a + b, 0) / paceSamples.length;
   paceEl.textContent = avgPace.toFixed(2);
@@ -115,26 +110,21 @@ function updatePosition(pos) {
   const estSec = Math.floor((estFinish % 1) * 60);
   estimateText.textContent = `Est. Finish: ${estMin}:${String(estSec).padStart(2, "0")}`;
 
-  // Pacer dot logic (right of center = ahead)
-  const goalCenter = 50;
   const deviation = (estFinish - goalTime) / goalTime;
-  const positionOffset = deviation * 50;
-  const leftPercent = Math.min(100, Math.max(0, goalCenter + positionOffset));
+  const leftPercent = Math.min(100, Math.max(0, 50 + deviation * 50));
   progressIcon.style.left = `${leftPercent}%`;
 
-  // Progress bars
-  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
+  lapsEl.textContent = lapCount;
+  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00`;
   lapLabel.textContent = `${lapCount} / 12 laps`;
-  lapsEl.textContent = `${lapCount}`;
   distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
   lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
 }
 
 function showError(err) {
-  alert("GPS error: " + err.message);
+  alert("GPS Error: " + err.message);
 }
 
-// Haversine
 function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
   const R = 3958.8;
   const dLat = deg2rad(lat2 - lat1);
@@ -142,10 +132,9 @@ function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(deg2rad(lat1)) *
-      Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+    Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
 function deg2rad(deg) {
