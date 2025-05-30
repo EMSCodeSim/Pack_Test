@@ -1,5 +1,4 @@
-let watchID, startTime, laps = 0, distance = 0, positions = [];
-let isRunning = false;
+let watchID, startTime, laps = 0, distance = 0, positions = [], isRunning = false;
 
 const lapLength = 0.25;
 const totalLaps = 12;
@@ -8,46 +7,45 @@ const trackCenterX = 200;
 const trackCenterY = 100;
 const trackRadiusX = 180;
 const trackRadiusY = 80;
+const targetTime = 45 * 60; // 45 minutes
 
 const startBtn = document.getElementById('startBtn');
 const timeDisplay = document.getElementById('time');
 const distanceDisplay = document.getElementById('distance');
-const lapsDisplay = document.getElementById('laps');
+const paceDisplay = document.getElementById('pace');
 const runnerDot = document.getElementById('runnerDot');
+const pacerRunner = document.getElementById('pacerRunner');
+const estFinish = document.getElementById('estFinish');
+const progressFill = document.getElementById('distanceProgress');
+const progressText = document.getElementById('progressText');
 
-// ✅ WORKING Start/Stop toggle logic
 startBtn.addEventListener('click', () => {
   if (!isRunning) {
-    beginTracking(); // ✅ correct name
+    startTracking();
     startBtn.textContent = "Stop";
   } else {
-    endTracking(); // ✅ correct name
+    stopTracking();
     startBtn.textContent = "Start";
   }
   isRunning = !isRunning;
 });
 
-function beginTracking() {
+function startTracking() {
   startTime = Date.now();
   distance = 0;
   laps = 0;
   positions = [];
 
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your device.");
-    return;
-  }
-
   watchID = navigator.geolocation.watchPosition(
     updatePosition,
-    (err) => alert("Geolocation error: " + err.message),
+    (err) => alert("GPS error: " + err.message),
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
   );
 
   updateTimer();
 }
 
-function endTracking() {
+function stopTracking() {
   navigator.geolocation.clearWatch(watchID);
 }
 
@@ -71,12 +69,23 @@ function updatePosition(pos) {
     if (d > 0.001) distance += d;
   }
 
-  distanceDisplay.textContent = distance.toFixed(2);
-  laps = Math.floor(distance / lapLength);
-  if (laps > totalLaps) laps = totalLaps;
-  lapsDisplay.textContent = laps;
+  const elapsed = (Date.now() - startTime) / 1000;
+  const speed = distance / (elapsed / 3600);
+  const estFinishSec = distance === 0 ? targetTime : (targetTime * (totalDistance / distance));
+  const estMin = Math.floor(estFinishSec / 60);
+  const estSec = String(Math.floor(estFinishSec % 60)).padStart(2, '0');
 
-  updateRunnerDot(distance / (lapLength * totalLaps));
+  paceDisplay.textContent = speed.toFixed(2);
+  distanceDisplay.textContent = distance.toFixed(2);
+  estFinish.textContent = `${estMin}:${estSec}`;
+  laps = Math.floor(distance / lapLength);
+
+  const progressPercent = Math.min((distance / totalDistance) * 100, 100);
+  progressFill.style.width = `${progressPercent}%`;
+  progressText.textContent = `${distance.toFixed(2)} / 3 miles | ${laps} / 12 laps`;
+
+  updateRunnerDot(distance / totalDistance);
+  updatePacerDot(elapsed / targetTime);
 }
 
 function updateRunnerDot(progress) {
@@ -85,6 +94,14 @@ function updateRunnerDot(progress) {
   const y = trackCenterY + trackRadiusY * Math.sin(angle - Math.PI / 2);
   runnerDot.setAttribute('cx', x);
   runnerDot.setAttribute('cy', y);
+}
+
+function updatePacerDot(progress) {
+  const angle = progress * 2 * Math.PI;
+  const x = trackCenterX + trackRadiusX * Math.cos(angle - Math.PI / 2);
+  const y = trackCenterY + trackRadiusY * Math.sin(angle - Math.PI / 2);
+  pacerRunner.setAttribute('cx', x);
+  pacerRunner.setAttribute('cy', y);
 }
 
 function calcDistance(p1, p2) {
