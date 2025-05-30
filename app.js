@@ -1,63 +1,52 @@
-let watchID, startTime, laps = 0, distance = 0, positions = [], isRunning = false;
+let watchID, startTime, laps = 0, distance = 0, positions = [];
 
-const totalLaps = 12;
 const lapLength = 0.25;
-const totalDistance = 3.0;
+const totalLaps = 12;
+const totalDistance = 3;
 
-const startBtn = document.getElementById("startBtn");
-const timeDisplay = document.getElementById("time");
-const distanceDisplay = document.getElementById("distance");
-const lapsDisplay = document.getElementById("laps");
-const runnerDot = document.getElementById("runnerDot");
-const estFinish = document.getElementById("estFinish");
+const trackCenterX = 200;
+const trackCenterY = 100;
+const trackRadiusX = 180;
+const trackRadiusY = 80;
 
-const centerX = 200;
-const centerY = 100;
-const radiusX = 180;
-const radiusY = 80;
-const targetTimeSec = 2700; // 45 min
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const timeDisplay = document.getElementById('time');
+const distanceDisplay = document.getElementById('distance');
+const lapsDisplay = document.getElementById('laps');
+const runnerDot = document.getElementById('runnerDot');
+const estFinish = document.getElementById('estFinish');
 
-startBtn.addEventListener("click", () => {
-  if (!isRunning) {
-    startTracking();
-    startBtn.textContent = "Stop";
-  } else {
-    stopTracking();
-    startBtn.textContent = "Start";
-  }
-  isRunning = !isRunning;
-});
-
-function startTracking() {
+startBtn.onclick = () => {
   startTime = Date.now();
   distance = 0;
   laps = 0;
   positions = [];
 
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported");
-    return;
-  }
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
 
   watchID = navigator.geolocation.watchPosition(
     updatePosition,
-    (err) => alert("Location error: " + err.message),
+    (err) => alert("Geolocation error: " + err.message),
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
   );
 
   updateTimer();
-}
+};
 
-function stopTracking() {
+stopBtn.onclick = () => {
   navigator.geolocation.clearWatch(watchID);
-}
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+};
 
 function updateTimer() {
   const interval = setInterval(() => {
-    if (!isRunning) return clearInterval(interval);
+    if (stopBtn.disabled) return clearInterval(interval);
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const mins = String(Math.floor(elapsed / 60)).padStart(2, "0");
-    const secs = String(elapsed % 60).padStart(2, "0");
+    const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const secs = String(elapsed % 60).padStart(2, '0');
     timeDisplay.textContent = `${mins}:${secs}`;
   }, 1000);
 }
@@ -73,9 +62,9 @@ function updatePosition(pos) {
   }
 
   const elapsed = (Date.now() - startTime) / 1000;
-  const estFinishTime = distance > 0 ? (elapsed * (totalDistance / distance)) : 2700;
-  const estMins = String(Math.floor(estFinishTime / 60)).padStart(2, "0");
-  const estSecs = String(Math.floor(estFinishTime % 60)).padStart(2, "0");
+  const estTime = distance > 0 ? (elapsed * (totalDistance / distance)) : 2700;
+  const estMins = String(Math.floor(estTime / 60)).padStart(2, '0');
+  const estSecs = String(Math.floor(estTime % 60)).padStart(2, '0');
 
   distanceDisplay.textContent = distance.toFixed(2);
   laps = Math.floor(distance / lapLength);
@@ -87,14 +76,14 @@ function updatePosition(pos) {
 
 function updateRunnerDot(progress) {
   const angle = progress * 2 * Math.PI;
-  const x = centerX + radiusX * Math.cos(angle - Math.PI / 2);
-  const y = centerY + radiusY * Math.sin(angle - Math.PI / 2);
+  const x = trackCenterX + trackRadiusX * Math.cos(angle - Math.PI / 2);
+  const y = trackCenterY + trackRadiusY * Math.sin(angle - Math.PI / 2);
   runnerDot.setAttribute("cx", x);
   runnerDot.setAttribute("cy", y);
 }
 
 function calcDistance(p1, p2) {
-  const R = 3958.8; // mi
+  const R = 3958.8;
   const toRad = deg => deg * Math.PI / 180;
   const dLat = toRad(p2.lat - p1.lat);
   const dLon = toRad(p2.lon - p1.lon);
