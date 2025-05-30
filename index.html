@@ -10,15 +10,25 @@
 <body>
   <div class="container">
     <h1>Pack Test Tracker</h1>
+
     <svg id="trackSvg" viewBox="0 0 400 200" width="100%" height="200">
       <ellipse cx="200" cy="100" rx="180" ry="80" fill="#f0f0f0" stroke="#888" stroke-width="4" />
       <circle id="runnerDot" cx="200" cy="20" r="8" fill="red" />
     </svg>
+
     <div class="status">
+      <label for="targetTime"><strong>Target Finish Time (min):</strong></label>
+      <input id="targetTime" type="number" value="45" min="20" max="90" />
       <p><strong>Laps:</strong> <span id="lapCount">0</span> / 12</p>
-      <p><strong>Time:</strong> <span id="time">00:00</span> / 45:00</p>
+      <p><strong>Time:</strong> <span id="time">00:00</span></p>
       <p><strong>Pace:</strong> <span id="pace">0:00</span> min/mi</p>
     </div>
+
+    <div class="pacer-bar">
+      <div class="pacer-line"></div>
+      <div id="pacerRunner">🏃</div>
+    </div>
+
     <button id="startBtn">Start Test</button>
     <button id="stopBtn" disabled>Stop Test</button>
   </div>
