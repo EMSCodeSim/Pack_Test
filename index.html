@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pack Test Tracker with Map</title>
+  <title>Pack Test Tracker with Pace Guide</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
@@ -15,7 +15,7 @@
     h1 {
       color: #333;
     }
-    #stats {
+    #stats, #goalInput {
       margin: 20px 0;
     }
     .stat {
@@ -27,6 +27,30 @@
       margin: 20px 0;
       border: 2px solid #444;
       border-radius: 10px;
+    }
+    #pace-visual {
+      position: relative;
+      height: 40px;
+      margin: 30px 0;
+      background: linear-gradient(to right, #ccc 50%, #eef2f3 50%);
+      border-top: 3px solid #444;
+    }
+    #goal-line {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 40px;
+      background: red;
+    }
+    #progress-icon {
+      position: absolute;
+      top: -10px;
+      width: 20px;
+      height: 20px;
+      background: teal;
+      border-radius: 50%;
+      border: 2px solid white;
     }
     button {
       padding: 10px 20px;
@@ -44,6 +68,12 @@
 </head>
 <body>
   <h1>Pack Test Tracker</h1>
+
+  <div id="goalInput">
+    <label for="goalTime">Enter goal finish time (minutes):</label>
+    <input type="number" id="goalTime" value="45" min="1" style="width: 60px;">
+  </div>
+
   <div id="stats">
     <div class="stat">Distance: <span id="distance">0.00</span> mi</div>
     <div class="stat">Time: <span id="time">00:00</span></div>
@@ -51,14 +81,21 @@
     <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
     <div class="stat">Laps (0.25 mi): <span id="laps">0</span></div>
   </div>
+
+  <div id="pace-visual">
+    <div id="goal-line"></div>
+    <div id="progress-icon"></div>
+  </div>
+
   <div id="map"></div>
+
   <button id="startBtn">Start Test</button>
   <button id="stopBtn" disabled>Stop Test</button>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
     let watchId, startTime, totalDistance = 0, lapCount = 0, lastPosition = null, timerInterval = null;
-    let map, pathLine;
+    let map, pathLine, goalTime = 45;
     const pathCoords = [];
 
     const distanceEl = document.getElementById("distance");
@@ -68,6 +105,8 @@
     const lapsEl = document.getElementById("laps");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const goalInput = document.getElementById("goalTime");
+    const progressIcon = document.getElementById("progress-icon");
 
     function initMap(lat, lon) {
       map = L.map('map').setView([lat, lon], 17);
@@ -78,6 +117,8 @@
     }
 
     startBtn.onclick = () => {
+      goalTime = parseInt(goalInput.value) || 45;
+
       if (!navigator.geolocation) {
         alert("Geolocation not supported.");
         return;
@@ -104,6 +145,7 @@
 
       startBtn.disabled = true;
       stopBtn.disabled = false;
+      goalInput.disabled = true;
     };
 
     stopBtn.onclick = () => {
@@ -111,6 +153,7 @@
       clearInterval(timerInterval);
       startBtn.disabled = false;
       stopBtn.disabled = true;
+      goalInput.disabled = false;
     };
 
     function updateTime() {
@@ -145,9 +188,12 @@
         const estMins = Math.floor(estimate).toString().padStart(2, '0');
         const estSecs = Math.floor((estimate % 1) * 60).toString().padStart(2, '0');
         estimateEl.textContent = `${estMins}:${estSecs}`;
+
+        updatePaceVisual(estimate);
       } else {
         paceEl.textContent = "--";
         estimateEl.textContent = "--:--";
+        updatePaceVisual(0);
       }
 
       if (map) {
@@ -156,6 +202,12 @@
         pathLine.setLatLngs(pathCoords);
         map.setView(latlng);
       }
+    }
+
+    function updatePaceVisual(currentEstimate) {
+      const icon = document.getElementById("progress-icon");
+      const percent = Math.max(0, Math.min(100, 50 + ((currentEstimate - goalTime) / goalTime) * 50));
+      icon.style.left = `calc(${percent}% - 10px)`;
     }
 
     function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
