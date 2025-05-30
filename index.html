@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pack Test Tracker</title>
+  <title>Pack Test Tracker with Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
       font-family: sans-serif;
@@ -20,6 +21,12 @@
     .stat {
       font-size: 1.4em;
       margin: 10px 0;
+    }
+    #map {
+      height: 300px;
+      margin: 20px 0;
+      border: 2px solid #444;
+      border-radius: 10px;
     }
     button {
       padding: 10px 20px;
@@ -42,43 +49,58 @@
     <div class="stat">Time: <span id="time">00:00</span></div>
     <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
     <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
+    <div class="stat">Laps (0.25 mi): <span id="laps">0</span></div>
   </div>
+  <div id="map"></div>
   <button id="startBtn">Start Test</button>
   <button id="stopBtn" disabled>Stop Test</button>
 
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    let watchId;
-    let startTime;
-    let totalDistance = 0;
-    let lastPosition = null;
-    let timerInterval = null;
+    let watchId, startTime, totalDistance = 0, lapCount = 0, lastPosition = null, timerInterval = null;
+    let map, pathLine;
+    const pathCoords = [];
 
     const distanceEl = document.getElementById("distance");
     const timeEl = document.getElementById("time");
     const paceEl = document.getElementById("pace");
     const estimateEl = document.getElementById("estimate");
+    const lapsEl = document.getElementById("laps");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
 
+    function initMap(lat, lon) {
+      map = L.map('map').setView([lat, lon], 17);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+      }).addTo(map);
+      pathLine = L.polyline([], { color: 'blue' }).addTo(map);
+    }
+
     startBtn.onclick = () => {
       if (!navigator.geolocation) {
-        alert("Geolocation not supported by your browser.");
+        alert("Geolocation not supported.");
         return;
       }
 
       startTime = Date.now();
       totalDistance = 0;
+      lapCount = 0;
       lastPosition = null;
+      pathCoords.length = 0;
+      if (map) map.remove();
+      document.getElementById('map').innerHTML = "";
+
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        initMap(latitude, longitude);
+      });
+
       updateTime();
       timerInterval = setInterval(updateTime, 1000);
-
-      watchId = navigator.geolocation.watchPosition(
-        updatePosition,
-        (err) => {
-          alert("Location access denied or error: " + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
+      watchId = navigator.geolocation.watchPosition(updatePosition, console.error, {
+        enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+      });
 
       startBtn.disabled = true;
       stopBtn.disabled = false;
@@ -106,11 +128,13 @@
         const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
         if (d > 0.0001) {
           totalDistance += d;
+          if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
         }
       }
 
       lastPosition = { lat: latitude, lon: longitude };
       distanceEl.textContent = totalDistance.toFixed(2);
+      lapsEl.textContent = lapCount;
 
       const elapsed = (currentTime - startTime) / 1000 / 60;
       if (totalDistance >= 0.05) {
@@ -125,16 +149,22 @@
         paceEl.textContent = "--";
         estimateEl.textContent = "--:--";
       }
+
+      if (map) {
+        const latlng = [latitude, longitude];
+        pathCoords.push(latlng);
+        pathLine.setLatLngs(pathCoords);
+        map.setView(latlng);
+      }
     }
 
     function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
       const R = 3958.8;
       const dLat = deg2rad(lat2 - lat1);
       const dLon = deg2rad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     }
