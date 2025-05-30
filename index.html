@@ -10,17 +10,16 @@
       margin: 0;
       padding: 0;
       font-family: Arial, sans-serif;
-      height: 100vh;
-      overflow: hidden;
+      height: 100dvh; /* use dynamic height for mobile Safari */
       display: flex;
       flex-direction: column;
     }
 
     #app {
+      flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      height: 100%;
       padding: 10px;
       box-sizing: border-box;
     }
@@ -28,7 +27,6 @@
     .row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 5px;
       font-size: 1.2em;
     }
 
@@ -39,7 +37,6 @@
     .bar-container {
       position: relative;
       height: 20px;
-      width: 100%;
       background-color: #eee;
       border-radius: 10px;
       overflow: hidden;
@@ -56,7 +53,7 @@
     #pace-indicator {
       position: relative;
       height: 30px;
-      margin-top: 10px;
+      margin-top: 5px;
       background-color: #ddd;
       border-radius: 5px;
     }
@@ -84,14 +81,14 @@
     #estimate-text {
       text-align: center;
       font-size: 1em;
-      margin-top: 3px;
+      margin: 2px 0;
     }
 
     #map {
-      height: 100px;
-      margin-top: 5px;
+      height: 90px;
       border: 1px solid #ccc;
       border-radius: 5px;
+      margin-top: 5px;
     }
 
     button {
@@ -115,6 +112,10 @@
     input[type="number"] {
       font-size: 1em;
     }
+
+    .center {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -125,21 +126,17 @@
     </div>
     <div class="row">
       <span>Laps: <span id="laps">0</span> / 12</span>
-      <span>Miles: <span id="distance-label">0.00 / 3.00 miles</span></span>
+      <span>Miles: <span id="distance-label">0.00 / 3.00</span></span>
     </div>
     <div class="row">
-      <span>Goal Time (min): <input type="number" id="goalTime" value="45" /></span>
+      <span>Goal: <input type="number" id="goalTime" value="45" /></span>
     </div>
 
-    <div class="bar-container">
-      <div id="lap-bar-fill" class="bar-fill"></div>
-    </div>
-    <div id="lap-label" style="text-align:center;">0 / 12 laps</div>
+    <div class="bar-container"><div id="lap-bar-fill" class="bar-fill"></div></div>
+    <div id="lap-label" class="center">0 / 12 laps</div>
 
-    <div class="bar-container">
-      <div id="distance-bar-fill" class="bar-fill"></div>
-    </div>
-    <div id="distance-label" style="text-align:center;">0.00 / 3.00 miles</div>
+    <div class="bar-container"><div id="distance-bar-fill" class="bar-fill"></div></div>
+    <div id="distance-label" class="center">0.00 / 3.00 miles</div>
 
     <div id="pace-indicator">
       <div id="marker-line"></div>
@@ -149,7 +146,7 @@
 
     <div id="map"></div>
 
-    <div style="text-align:center;">
+    <div class="center">
       <button id="startBtn">Start</button>
       <button id="stopBtn" disabled>Stop</button>
     </div>
