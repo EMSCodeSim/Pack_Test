@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pack Test Tracker with Pace Guide</title>
+  <title>Pack Test Tracker - Visual Pace</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
@@ -30,9 +30,9 @@
     }
     #pace-visual {
       position: relative;
-      height: 40px;
+      height: 60px;
       margin: 30px 0;
-      background: linear-gradient(to right, #ccc 50%, #eef2f3 50%);
+      background: linear-gradient(to right, #eef2f3 50%, #ccc 50%);
       border-top: 3px solid #444;
     }
     #goal-line {
@@ -51,6 +51,36 @@
       background: teal;
       border-radius: 50%;
       border: 2px solid white;
+    }
+    #estimate-text {
+      position: absolute;
+      top: 42px;
+      width: 100%;
+      font-size: 1em;
+      color: #333;
+    }
+    #distance-bar-container {
+      position: relative;
+      height: 30px;
+      margin: 20px auto;
+      width: 90%;
+      background-color: #ccc;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+    #distance-bar-fill {
+      height: 100%;
+      background-color: teal;
+      width: 0%;
+      transition: width 0.5s;
+    }
+    #distance-label {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 3px;
+      font-size: 1.2em;
+      color: white;
     }
     button {
       padding: 10px 20px;
@@ -75,16 +105,20 @@
   </div>
 
   <div id="stats">
-    <div class="stat">Distance: <span id="distance">0.00</span> mi</div>
     <div class="stat">Time: <span id="time">00:00</span></div>
     <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
-    <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
     <div class="stat">Laps (0.25 mi): <span id="laps">0</span></div>
+  </div>
+
+  <div id="distance-bar-container">
+    <div id="distance-bar-fill"></div>
+    <div id="distance-label">0.00 / 3.00 mi</div>
   </div>
 
   <div id="pace-visual">
     <div id="goal-line"></div>
     <div id="progress-icon"></div>
+    <div id="estimate-text">Est. Finish: --:--</div>
   </div>
 
   <div id="map"></div>
@@ -98,15 +132,16 @@
     let map, pathLine, goalTime = 45;
     const pathCoords = [];
 
-    const distanceEl = document.getElementById("distance");
     const timeEl = document.getElementById("time");
     const paceEl = document.getElementById("pace");
-    const estimateEl = document.getElementById("estimate");
     const lapsEl = document.getElementById("laps");
     const startBtn = document.getElementById("startBtn");
     const stopBtn = document.getElementById("stopBtn");
     const goalInput = document.getElementById("goalTime");
     const progressIcon = document.getElementById("progress-icon");
+    const estimateText = document.getElementById("estimate-text");
+    const distanceLabel = document.getElementById("distance-label");
+    const distanceFill = document.getElementById("distance-bar-fill");
 
     function initMap(lat, lon) {
       map = L.map('map').setView([lat, lon], 17);
@@ -176,25 +211,26 @@
       }
 
       lastPosition = { lat: latitude, lon: longitude };
-      distanceEl.textContent = totalDistance.toFixed(2);
       lapsEl.textContent = lapCount;
 
       const elapsed = (currentTime - startTime) / 1000 / 60;
-      if (totalDistance >= 0.05) {
-        const pace = (elapsed / totalDistance).toFixed(2);
-        paceEl.textContent = pace;
+      let pace = "--", est = "--:--";
 
+      if (totalDistance >= 0.05) {
+        pace = (elapsed / totalDistance).toFixed(2);
         const estimate = 3 * (elapsed / totalDistance);
         const estMins = Math.floor(estimate).toString().padStart(2, '0');
         const estSecs = Math.floor((estimate % 1) * 60).toString().padStart(2, '0');
-        estimateEl.textContent = `${estMins}:${estSecs}`;
-
+        est = `${estMins}:${estSecs}`;
         updatePaceVisual(estimate);
       } else {
-        paceEl.textContent = "--";
-        estimateEl.textContent = "--:--";
         updatePaceVisual(0);
       }
+
+      paceEl.textContent = pace;
+      estimateText.textContent = "Est. Finish: " + est;
+      distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 mi`;
+      distanceFill.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
 
       if (map) {
         const latlng = [latitude, longitude];
@@ -204,10 +240,9 @@
       }
     }
 
-    function updatePaceVisual(currentEstimate) {
-      const icon = document.getElementById("progress-icon");
-      const percent = Math.max(0, Math.min(100, 50 + ((currentEstimate - goalTime) / goalTime) * 50));
-      icon.style.left = `calc(${percent}% - 10px)`;
+    function updatePaceVisual(estimate) {
+      const percent = Math.max(0, Math.min(100, 50 + ((goalTime - estimate) / goalTime) * 50));
+      progressIcon.style.left = `calc(${percent}% - 10px)`;
     }
 
     function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
