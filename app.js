@@ -2,6 +2,7 @@ let watchID, startTime, laps = 0, distance = 0, positions = [];
 
 const lapLength = 0.25;
 const totalLaps = 12;
+const totalDistance = 3;
 const trackCenterX = 200;
 const trackCenterY = 100;
 const trackRadiusX = 180;
@@ -9,12 +10,14 @@ const trackRadiusY = 80;
 
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
-const lapCount = document.getElementById('lapCount');
 const timeDisplay = document.getElementById('time');
 const paceDisplay = document.getElementById('pace');
 const runnerDot = document.getElementById('runnerDot');
+const estFinish = document.getElementById('estFinish');
 const pacerRunner = document.getElementById('pacerRunner');
 const targetTimeInput = document.getElementById('targetTime');
+const distanceBar = document.getElementById('distanceBar');
+const lapBar = document.getElementById('lapBar');
 
 startBtn.onclick = () => {
   startTime = Date.now();
@@ -23,7 +26,6 @@ startBtn.onclick = () => {
   positions = [];
   startBtn.disabled = true;
   stopBtn.disabled = false;
-  lapCount.textContent = "0";
 
   watchID = navigator.geolocation.watchPosition(handlePosition, console.error, {
     enableHighAccuracy: true,
@@ -63,20 +65,21 @@ function handlePosition(pos) {
 
   laps = Math.floor(distance / lapLength);
   if (laps > totalLaps) laps = totalLaps;
-  lapCount.textContent = laps;
 
   const elapsedMin = (Date.now() - startTime) / 60000;
   const pace = elapsedMin > 0 ? distance / elapsedMin : 0;
   paceDisplay.textContent = pace > 0 ? (60 / pace).toFixed(2) : "0:00";
 
-  updateRunnerDot(distance / (lapLength * totalLaps));
+  const estTime = pace > 0 ? (totalDistance / pace).toFixed(2) : "--";
+  estFinish.textContent = estTime !== "--" ? `${Math.floor(estTime)}:${String(Math.round((estTime % 1) * 60)).padStart(2, '0')}` : "--:--";
 
-  // Pacer logic
+  updateRunnerDot(distance / (lapLength * totalLaps));
+  updateProgressBars(distance, laps);
+
   const targetTimeMin = parseFloat(targetTimeInput.value);
-  const targetPace = 3 / targetTimeMin;
-  const progressRatio = distance / 3;
   const expectedRatio = elapsedMin / targetTimeMin;
-  const offsetRatio = progressRatio - expectedRatio;
+  const actualRatio = distance / totalDistance;
+  const offsetRatio = actualRatio - expectedRatio;
   updatePacerRunner(offsetRatio);
 }
 
@@ -93,6 +96,11 @@ function updatePacerRunner(offset) {
   let shiftPx = offset * maxShift;
   shiftPx = Math.max(-maxShift, Math.min(maxShift, shiftPx));
   pacerRunner.style.left = `calc(50% + ${shiftPx}px)`;
+}
+
+function updateProgressBars(dist, laps) {
+  distanceBar.value = Math.min(dist, totalDistance);
+  lapBar.value = Math.min(laps, totalLaps);
 }
 
 function calcDistance(p1, p2) {
