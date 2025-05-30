@@ -14,19 +14,27 @@
     <svg id="trackSvg" viewBox="0 0 400 200" width="100%" height="200">
       <ellipse cx="200" cy="100" rx="180" ry="80" fill="#f0f0f0" stroke="#888" stroke-width="4" />
       <circle id="runnerDot" cx="200" cy="20" r="8" fill="red" />
+      <text id="estFinish" x="200" y="110" text-anchor="middle" font-size="22px" fill="#333">--:--</text>
     </svg>
 
     <div class="status">
-      <label for="targetTime"><strong>Target Finish Time (min):</strong></label>
+      <label for="targetTime"><strong>Target Time (min):</strong></label>
       <input id="targetTime" type="number" value="45" min="20" max="90" />
-      <p><strong>Laps:</strong> <span id="lapCount">0</span> / 12</p>
       <p><strong>Time:</strong> <span id="time">00:00</span></p>
       <p><strong>Pace:</strong> <span id="pace">0:00</span> min/mi</p>
     </div>
 
     <div class="pacer-bar">
+      <div class="pacer-green-zone"></div>
       <div class="pacer-line"></div>
       <div id="pacerRunner">🏃</div>
+    </div>
+
+    <div class="progress-bars">
+      <p>Distance Progress (0–3 mi)</p>
+      <progress id="distanceBar" value="0" max="3"></progress>
+      <p>Lap Progress (0–12 laps)</p>
+      <progress id="lapBar" value="0" max="12"></progress>
     </div>
 
     <button id="startBtn">Start Test</button>
