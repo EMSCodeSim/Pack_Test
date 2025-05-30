@@ -1,142 +1,88 @@
-let startTime, watchId;
-let totalDistance = 0;
-let lapCount = 0;
-let previousCoords = null;
-let goalTime = 45;
-const totalDistanceGoal = 3.0;
-let paceSamples = [];
-let timerRunning = false;
+let watchID, startTime, laps = 0, distance = 0, positions = [];
 
-const timeEl = document.getElementById("time");
-const paceEl = document.getElementById("pace");
-const lapsEl = document.getElementById("laps");
-const distanceLabel = document.getElementById("distance-label");
-const lapLabel = document.getElementById("lap-label");
-const distanceBar = document.getElementById("distance-bar-fill");
-const lapBar = document.getElementById("lap-bar-fill");
-const progressIcon = document.getElementById("progress-icon");
-const estimateText = document.getElementById("estimate-text");
+const lapLength = 0.25; // 1 lap = 0.25 mi
+const totalLaps = 12;
+const trackCenterX = 200;
+const trackCenterY = 100;
+const trackRadiusX = 180;
+const trackRadiusY = 80;
 
-document.getElementById("startBtn").addEventListener("click", startTest);
-document.getElementById("stopBtn").addEventListener("click", stopTest);
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const lapCount = document.getElementById('lapCount');
+const timeDisplay = document.getElementById('time');
+const paceDisplay = document.getElementById('pace');
+const runnerDot = document.getElementById('runnerDot');
 
-function startTest() {
-  goalTime = parseFloat(document.getElementById("goalTime").value) || 45;
-  totalDistance = 0;
-  lapCount = 0;
-  paceSamples = [];
-  previousCoords = null;
+startBtn.onclick = () => {
   startTime = Date.now();
-  timerRunning = true;
-  updateTimer();
+  distance = 0;
+  laps = 0;
+  positions = [];
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  lapCount.textContent = "0";
 
-  watchId = navigator.geolocation.watchPosition(updatePosition, showError, {
+  watchID = navigator.geolocation.watchPosition(handlePosition, console.error, {
     enableHighAccuracy: true,
     maximumAge: 1000,
-    timeout: 5000,
+    timeout: 10000
   });
 
-  if (!window.mapInitialized) {
-    const map = L.map('map').setView([0, 0], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-    window.map = map;
-    window.mapInitialized = true;
-  }
+  updateTimer();
+};
 
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("stopBtn").disabled = false;
-}
-
-function stopTest() {
-  navigator.geolocation.clearWatch(watchId);
-  timerRunning = false;
-  document.getElementById("startBtn").disabled = false;
-  document.getElementById("stopBtn").disabled = true;
-}
+stopBtn.onclick = () => {
+  navigator.geolocation.clearWatch(watchID);
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+};
 
 function updateTimer() {
-  if (!timerRunning) return;
-  const elapsed = (Date.now() - startTime) / 1000;
-  const mins = Math.floor(elapsed / 60);
-  const secs = Math.floor(elapsed % 60);
-  timeEl.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  setTimeout(updateTimer, 1000);
+  const interval = setInterval(() => {
+    if (!startBtn.disabled) return clearInterval(interval);
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const secs = String(elapsed % 60).padStart(2, '0');
+    timeDisplay.textContent = `${mins}:${secs}`;
+  }, 1000);
 }
 
-function updatePosition(pos) {
-  const { latitude, longitude, speed } = pos.coords;
+function handlePosition(pos) {
+  const { latitude, longitude } = pos.coords;
+  const point = { lat: latitude, lon: longitude, time: Date.now() };
+  positions.push(point);
 
-  if (previousCoords) {
-    const d = getDistanceFromLatLonInMi(previousCoords.latitude, previousCoords.longitude, latitude, longitude);
-    if (d < 0.0019) return; // ignore small drift under 10 feet
-    totalDistance += d;
-    if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
+  if (positions.length > 5) {
+    const last5 = positions.slice(-5);
+    const d = calcDistance(last5[0], last5[4]);
+    if (d > 0.005) distance += d;
   }
 
-  previousCoords = { latitude, longitude };
-
-  // Update map
-  if (window.map) {
-    const latlng = [latitude, longitude];
-    window.map.setView(latlng);
-    if (!window.userMarker) {
-      window.userMarker = L.marker(latlng).addTo(window.map);
-    } else {
-      window.userMarker.setLatLng(latlng);
-    }
-  }
-
-  // Update visuals after 0.02 mi
-  if (totalDistance < 0.02) return;
+  laps = Math.floor(distance / lapLength);
+  if (laps > totalLaps) laps = totalLaps;
+  lapCount.textContent = laps;
 
   const elapsedMin = (Date.now() - startTime) / 60000;
-  let pace;
+  const pace = elapsedMin > 0 ? distance / elapsedMin : 0;
+  paceDisplay.textContent = pace > 0 ? (60 / pace).toFixed(2) : "0:00";
 
-  if (speed && speed > 0) {
-    pace = 26.8224 / speed; // m/s to min/mile
-  } else {
-    pace = elapsedMin / totalDistance;
-  }
-
-  paceSamples.push(pace);
-  if (paceSamples.length > 5) paceSamples.shift();
-  const avgPace = paceSamples.reduce((a, b) => a + b, 0) / paceSamples.length;
-  paceEl.textContent = avgPace.toFixed(2);
-
-  const estFinish = avgPace * totalDistanceGoal;
-  const estMin = Math.floor(estFinish);
-  const estSec = Math.floor((estFinish % 1) * 60);
-  estimateText.textContent = `Est. Finish: ${estMin}:${String(estSec).padStart(2, "0")}`;
-
-  const deviation = (estFinish - goalTime) / goalTime;
-  const leftPercent = Math.min(100, Math.max(0, 50 + deviation * 50));
-  progressIcon.style.left = `${leftPercent}%`;
-
-  lapsEl.textContent = lapCount;
-  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00`;
-  lapLabel.textContent = `${lapCount} / 12 laps`;
-  distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
-  lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
+  updateRunnerDot(distance / (lapLength * totalLaps));
 }
 
-function showError(err) {
-  alert("GPS Error: " + err.message);
+function updateRunnerDot(progress) {
+  const angle = progress * 2 * Math.PI;
+  const x = trackCenterX + trackRadiusX * Math.cos(angle - Math.PI / 2);
+  const y = trackCenterY + trackRadiusY * Math.sin(angle - Math.PI / 2);
+  runnerDot.setAttribute('cx', x);
+  runnerDot.setAttribute('cy', y);
 }
 
-function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
+function calcDistance(p1, p2) {
   const R = 3958.8;
-  const dLat = deg2rad(lat2 - lat1);
-  const dLon = deg2rad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(deg2rad(lat1)) *
-    Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) ** 2;
-  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-}
-
-function deg2rad(deg) {
-  return deg * (Math.PI / 180);
+  const toRad = deg => deg * Math.PI / 180;
+  const dLat = toRad(p2.lat - p1.lat);
+  const dLon = toRad(p2.lon - p1.lon);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(p1.lat)) * Math.cos(toRad(p2.lat)) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
