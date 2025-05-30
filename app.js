@@ -1,6 +1,6 @@
 let watchID, startTime, laps = 0, distance = 0, positions = [];
 
-const lapLength = 0.25; // 1 lap = 0.25 mi
+const lapLength = 0.25;
 const totalLaps = 12;
 const trackCenterX = 200;
 const trackCenterY = 100;
@@ -13,6 +13,8 @@ const lapCount = document.getElementById('lapCount');
 const timeDisplay = document.getElementById('time');
 const paceDisplay = document.getElementById('pace');
 const runnerDot = document.getElementById('runnerDot');
+const pacerRunner = document.getElementById('pacerRunner');
+const targetTimeInput = document.getElementById('targetTime');
 
 startBtn.onclick = () => {
   startTime = Date.now();
@@ -68,6 +70,14 @@ function handlePosition(pos) {
   paceDisplay.textContent = pace > 0 ? (60 / pace).toFixed(2) : "0:00";
 
   updateRunnerDot(distance / (lapLength * totalLaps));
+
+  // Pacer logic
+  const targetTimeMin = parseFloat(targetTimeInput.value);
+  const targetPace = 3 / targetTimeMin;
+  const progressRatio = distance / 3;
+  const expectedRatio = elapsedMin / targetTimeMin;
+  const offsetRatio = progressRatio - expectedRatio;
+  updatePacerRunner(offsetRatio);
 }
 
 function updateRunnerDot(progress) {
@@ -76,6 +86,13 @@ function updateRunnerDot(progress) {
   const y = trackCenterY + trackRadiusY * Math.sin(angle - Math.PI / 2);
   runnerDot.setAttribute('cx', x);
   runnerDot.setAttribute('cy', y);
+}
+
+function updatePacerRunner(offset) {
+  const maxShift = 150;
+  let shiftPx = offset * maxShift;
+  shiftPx = Math.max(-maxShift, Math.min(maxShift, shiftPx));
+  pacerRunner.style.left = `calc(50% + ${shiftPx}px)`;
 }
 
 function calcDistance(p1, p2) {
