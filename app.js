@@ -16,8 +16,10 @@ const runnerDot = document.getElementById('runnerDot');
 const estFinish = document.getElementById('estFinish');
 const pacerRunner = document.getElementById('pacerRunner');
 const targetTimeInput = document.getElementById('targetTime');
-const distanceBar = document.getElementById('distanceBar');
-const lapBar = document.getElementById('lapBar');
+const distanceFill = document.getElementById('distanceFill');
+const distanceText = document.getElementById('distanceText');
+const lapFill = document.getElementById('lapFill');
+const lapText = document.getElementById('lapText');
 
 startBtn.onclick = () => {
   startTime = Date.now();
@@ -99,8 +101,14 @@ function updatePacerRunner(offset) {
 }
 
 function updateProgressBars(dist, laps) {
-  distanceBar.value = Math.min(dist, totalDistance);
-  lapBar.value = Math.min(laps, totalLaps);
+  const distRatio = Math.min(dist / totalDistance, 1);
+  const lapRatio = Math.min(laps / totalLaps, 1);
+
+  distanceFill.style.width = `${distRatio * 100}%`;
+  distanceText.textContent = `${dist.toFixed(2)} / 3.00 mi`;
+
+  lapFill.style.width = `${lapRatio * 100}%`;
+  lapText.textContent = `${laps} / 12 Laps`;
 }
 
 function calcDistance(p1, p2) {
