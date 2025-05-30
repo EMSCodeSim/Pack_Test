@@ -1,73 +1,108 @@
-
-let watchId;
-let startTime;
+let startTime, watchId;
 let totalDistance = 0;
-let lastPosition = null;
+let lapCount = 0;
+let previousCoords = null;
+let goalTime = 45;
+const totalDistanceGoal = 3.0;
+const totalLaps = 12;
 
-const distanceEl = document.getElementById("distance");
 const timeEl = document.getElementById("time");
 const paceEl = document.getElementById("pace");
-const estimateEl = document.getElementById("estimate");
-const startBtn = document.getElementById("startBtn");
-const stopBtn = document.getElementById("stopBtn");
+const lapsEl = document.getElementById("laps");
+const distanceLabel = document.getElementById("distance-label");
+const lapLabel = document.getElementById("lap-label");
+const distanceBar = document.getElementById("distance-bar-fill");
+const lapBar = document.getElementById("lap-bar-fill");
+const progressIcon = document.getElementById("progress-icon");
+const estimateText = document.getElementById("estimate-text");
 
-startBtn.onclick = () => {
-  startTime = Date.now();
+document.getElementById("startBtn").addEventListener("click", startTest);
+document.getElementById("stopBtn").addEventListener("click", stopTest);
+
+function startTest() {
+  goalTime = parseFloat(document.getElementById("goalTime").value) || 45;
   totalDistance = 0;
-  lastPosition = null;
-  updateTime();
-  watchId = navigator.geolocation.watchPosition(updatePosition, console.error, { enableHighAccuracy: true });
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-};
+  lapCount = 0;
+  previousCoords = null;
+  startTime = Date.now();
+  updateTimer();
+  watchId = navigator.geolocation.watchPosition(updatePosition, showError, {
+    enableHighAccuracy: true,
+    maximumAge: 1000,
+    timeout: 10000,
+  });
+  document.getElementById("startBtn").disabled = true;
+  document.getElementById("stopBtn").disabled = false;
+}
 
-stopBtn.onclick = () => {
+function stopTest() {
   navigator.geolocation.clearWatch(watchId);
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-};
+  document.getElementById("startBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
+}
 
-function updateTime() {
-  if (!startTime) return;
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
-  const secs = (elapsed % 60).toString().padStart(2, '0');
-  timeEl.textContent = \`\${mins}:\${secs}\`;
-
-  if (startBtn.disabled) setTimeout(updateTime, 1000);
+function updateTimer() {
+  const elapsed = (Date.now() - startTime) / 1000;
+  const mins = Math.floor(elapsed / 60);
+  const secs = Math.floor(elapsed % 60);
+  timeEl.textContent = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  if (watchId) setTimeout(updateTimer, 1000);
 }
 
 function updatePosition(pos) {
   const { latitude, longitude } = pos.coords;
-  const currentTime = Date.now();
-
-  if (lastPosition) {
-    const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
-    totalDistance += d;
+  if (previousCoords) {
+    const distance = getDistanceFromLatLonInMi(
+      previousCoords.latitude,
+      previousCoords.longitude,
+      latitude,
+      longitude
+    );
+    totalDistance += distance;
+    if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
   }
+  previousCoords = { latitude, longitude };
 
-  lastPosition = { lat: latitude, lon: longitude };
+  // Update UI
+  const elapsed = (Date.now() - startTime) / 1000 / 60;
+  const pace = totalDistance > 0 ? elapsed / totalDistance : 0;
+  const estFinish = pace * totalDistanceGoal;
+  const estMin = Math.floor(estFinish);
+  const estSec = Math.floor((estFinish % 1) * 60);
+  estimateText.textContent = `Est. Finish: ${estMin}:${String(estSec).padStart(2, "0")}`;
 
-  distanceEl.textContent = totalDistance.toFixed(2);
+  // Pace dot logic
+  const goalCenter = 50;
+  const deviation = (goalTime - estFinish) / goalTime;
+  const positionOffset = deviation * 50; // max ±50%
+  const leftPercent = Math.min(100, Math.max(0, goalCenter - positionOffset));
+  progressIcon.style.left = `${leftPercent}%`;
 
-  const elapsed = (currentTime - startTime) / 1000 / 60;
-  const pace = totalDistance > 0 ? (elapsed / totalDistance).toFixed(2) : "--";
-  paceEl.textContent = pace;
+  // Update bars
+  lapsEl.textContent = `${lapCount}`;
+  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
+  lapLabel.textContent = `${lapCount} / 12 laps`;
+  distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
+  lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
 
-  const estimate = totalDistance > 0 ? (3 * (elapsed / totalDistance)) : 0;
-  const estMins = Math.floor(estimate).toString().padStart(2, '0');
-  const estSecs = Math.floor((estimate % 1) * 60).toString().padStart(2, '0');
-  estimateEl.textContent = totalDistance > 0 ? \`\${estMins}:\${estSecs}\` : "--:--";
+  // Update pace
+  paceEl.textContent = pace > 0 ? pace.toFixed(2) : "--";
 }
 
+function showError(err) {
+  alert("GPS error: " + err.message);
+}
+
+// Haversine formula
 function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
-  const R = 3958.8; // Radius of the Earth in miles
+  const R = 3958.8; // miles
   const dLat = deg2rad(lat2 - lat1);
   const dLon = deg2rad(lon2 - lon1);
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
