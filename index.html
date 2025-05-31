@@ -1,110 +1,134 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pack Test Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f2f8fc;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    h1 {
-      margin-top: 20px;
-      font-size: 1.8em;
-      color: #004d80;
-    }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      margin: 20px;
-      width: 90%;
-      max-width: 400px;
-    }
-
-    .metric {
-      background: white;
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      font-family: sans-serif;
       text-align: center;
+      padding: 20px;
+      background-color: #eef2f3;
     }
-
-    .metric span {
-      display: block;
-      font-size: 1.2em;
-      color: #0077b6;
+    h1 {
+      color: #333;
     }
-
-    .metric label {
-      font-size: 0.85em;
-      color: #444;
+    #stats {
+      margin: 20px 0;
     }
-
-    .buttons {
-      margin: 10px;
-      display: flex;
-      gap: 20px;
+    .stat {
+      font-size: 1.4em;
+      margin: 10px 0;
     }
-
     button {
-      padding: 12px 20px;
-      font-size: 1em;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
+      padding: 10px 20px;
+      font-size: 1.2em;
+      margin: 10px;
+      background-color: teal;
       color: white;
-      background-color: #0077b6;
-      transition: background-color 0.3s;
+      border: none;
+      border-radius: 5px;
     }
-
     button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    button:hover:not(:disabled) {
-      background-color: #005f8a;
+      background-color: gray;
     }
   </style>
 </head>
 <body>
   <h1>Pack Test Tracker</h1>
-
-  <div class="metrics">
-    <div class="metric">
-      <span id="distance">0.00</span>
-      <label>Distance (mi)</label>
-    </div>
-    <div class="metric">
-      <span id="time">00:00</span>
-      <label>Time</label>
-    </div>
-    <div class="metric">
-      <span id="pace">0.00</span>
-      <label>Pace (min/mi)</label>
-    </div>
-    <div class="metric">
-      <span id="estimate">--:--</span>
-      <label>Est. Finish</label>
-    </div>
+  <div id="stats">
+    <div class="stat">Distance: <span id="distance">0.00</span> mi</div>
+    <div class="stat">Time: <span id="time">00:00</span></div>
+    <div class="stat">Pace: <span id="pace">--</span> min/mi</div>
+    <div class="stat">Est. Finish: <span id="estimate">--:--</span></div>
   </div>
+  <button id="startBtn">Start Test</button>
+  <button id="stopBtn" disabled>Stop Test</button>
 
-  <div class="buttons">
-    <button id="startBtn">Start</button>
-    <button id="stopBtn" disabled>Stop</button>
-  </div>
+  <script>
+    let watchId;
+    let startTime;
+    let totalDistance = 0;
+    let lastPosition = null;
 
-  <script src="app.js"></script>
+    const distanceEl = document.getElementById("distance");
+    const timeEl = document.getElementById("time");
+    const paceEl = document.getElementById("pace");
+    const estimateEl = document.getElementById("estimate");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+
+    startBtn.onclick = () => {
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported by your browser.");
+        return;
+      }
+
+      startTime = Date.now();
+      totalDistance = 0;
+      lastPosition = null;
+      updateTime();
+      watchId = navigator.geolocation.watchPosition(updatePosition, (err) => {
+        alert("Location access denied or error: " + err.message);
+      }, { enableHighAccuracy: true });
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    };
+
+    stopBtn.onclick = () => {
+      navigator.geolocation.clearWatch(watchId);
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    };
+
+    function updateTime() {
+      if (!startTime) return;
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+      const secs = (elapsed % 60).toString().padStart(2, '0');
+      timeEl.textContent = \`\${mins}:\${secs}\`;
+
+      if (startBtn.disabled) setTimeout(updateTime, 1000);
+    }
+
+    function updatePosition(pos) {
+      const { latitude, longitude } = pos.coords;
+      const currentTime = Date.now();
+
+      if (lastPosition) {
+        const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
+        totalDistance += d;
+      }
+
+      lastPosition = { lat: latitude, lon: longitude };
+
+      distanceEl.textContent = totalDistance.toFixed(2);
+
+      const elapsed = (currentTime - startTime) / 1000 / 60;
+      const pace = totalDistance > 0 ? (elapsed / totalDistance).toFixed(2) : "--";
+      paceEl.textContent = pace;
+
+      const estimate = totalDistance > 0 ? (3 * (elapsed / totalDistance)) : 0;
+      const estMins = Math.floor(estimate).toString().padStart(2, '0');
+      const estSecs = Math.floor((estimate % 1) * 60).toString().padStart(2, '0');
+      estimateEl.textContent = totalDistance > 0 ? \`\${estMins}:\${estSecs}\` : "--:--";
+    }
+
+    function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
+      const R = 3958.8;
+      const dLat = deg2rad(lat2 - lat1);
+      const dLon = deg2rad(lon2 - lon1);
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function deg2rad(deg) {
+      return deg * (Math.PI / 180);
+    }
+  </script>
 </body>
 </html>
