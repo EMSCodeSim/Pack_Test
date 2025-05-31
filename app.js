@@ -1,119 +1,87 @@
-let startTime, timerInterval, watchId;
+let watchId;
+let startTime;
 let totalDistance = 0;
-let lastPos = null;
-let lapCount = 0;
+let lastPosition = null;
 
-const goalTimeInput = document.getElementById('goalTime');
-const timeDisplay = document.getElementById('time');
-const paceDisplay = document.getElementById('pace');
-const lapsDisplay = document.getElementById('laps');
-const distanceLabel = document.getElementById('distance-label');
-const distanceBar = document.getElementById('distance-bar-fill');
-const lapLabel = document.getElementById('lap-label');
-const lapBar = document.getElementById('lap-bar-fill');
-const estimateText = document.getElementById('estimate-text');
-const runnerDot = document.getElementById('runnerDot');
+const distanceEl = document.getElementById("distance");
+const timeEl = document.getElementById("time");
+const paceEl = document.getElementById("pace");
+const estimateEl = document.getElementById("estimate");
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
 
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
-
-// Attach listeners (compatible on iPhone and all devices)
 startBtn.addEventListener("click", startTest);
 stopBtn.addEventListener("click", stopTest);
 
-function formatTime(ms) {
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
-  return `${min}:${sec}`;
+function startTest() {
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported by your browser.");
+    return;
+  }
+
+  startTime = Date.now();
+  totalDistance = 0;
+  lastPosition = null;
+  updateTime();
+  watchId = navigator.geolocation.watchPosition(updatePosition, (err) => {
+    alert("Location access denied or error: " + err.message);
+  }, { enableHighAccuracy: true });
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
 }
 
-function updateTimer() {
-  const now = Date.now();
-  const elapsed = now - startTime;
-  timeDisplay.textContent = formatTime(elapsed);
-
-  const pace = totalDistance > 0 ? elapsed / 60000 / totalDistance : 0;
-  paceDisplay.textContent = pace.toFixed(2);
-
-  const estFinishMin = pace * 3; // 3 miles
-  estimateText.textContent = `Est. Finish: ${Math.floor(estFinishMin)}:${Math.round((estFinishMin % 1) * 60).toString().padStart(2, '0')}`;
+function stopTest() {
+  navigator.geolocation.clearWatch(watchId);
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
 }
 
-function getDistance(lat1, lon1, lat2, lon2) {
-  const toRad = deg => deg * Math.PI / 180;
-  const R = 3958.8;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+function updateTime() {
+  if (!startTime) return;
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+  const secs = (elapsed % 60).toString().padStart(2, '0');
+  timeEl.textContent = `${mins}:${secs}`;
 
-function updateRunnerDot() {
-  const pct = (totalDistance / 3) % 1;
-  const angle = 2 * Math.PI * pct - Math.PI / 2;
-  const cx = 100 + 90 * Math.cos(angle);
-  const cy = 50 + 40 * Math.sin(angle);
-  runnerDot.setAttribute("cx", cx);
-  runnerDot.setAttribute("cy", cy);
-}
-
-function updateDistanceUI() {
-  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
-  distanceBar.style.width = `${(totalDistance / 3) * 100}%`;
-
-  lapLabel.textContent = `${lapCount} / 12 laps`;
-  lapBar.style.width = `${(lapCount / 12) * 100}%`;
-
-  updateRunnerDot();
+  if (startBtn.disabled) setTimeout(updateTime, 1000);
 }
 
 function updatePosition(pos) {
   const { latitude, longitude } = pos.coords;
-  if (lastPos) {
-    const dist = getDistance(lastPos.lat, lastPos.lon, latitude, longitude);
-    if (dist > 0.0001) {
-      totalDistance += dist;
-      lapCount = Math.floor(totalDistance / 0.25);
-      updateDistanceUI();
-    }
+  const currentTime = Date.now();
+
+  if (lastPosition) {
+    const d = getDistanceFromLatLonInMi(latitude, longitude, lastPosition.lat, lastPosition.lon);
+    totalDistance += d;
   }
-  lastPos = { lat: latitude, lon: longitude };
+
+  lastPosition = { lat: latitude, lon: longitude };
+
+  distanceEl.textContent = totalDistance.toFixed(2);
+  const elapsedMinutes = (Date.now() - startTime) / 60000;
+  if (totalDistance > 0) {
+    const pace = elapsedMinutes / totalDistance;
+    paceEl.textContent = pace.toFixed(2);
+    const estFinish = pace * 3; // for 3 miles
+    const mins = Math.floor(estFinish).toString().padStart(2, '0');
+    const secs = Math.floor((estFinish % 1) * 60).toString().padStart(2, '0');
+    estimateEl.textContent = `${mins}:${secs}`;
+  }
 }
 
-function startTest() {
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported");
-    return;
-  }
-
-  startBtn.disabled = true;
-  stopBtn.disabled = false;
-  totalDistance = 0;
-  lapCount = 0;
-  lastPos = null;
-  updateDistanceUI();
-
-  startTime = Date.now();
-  timerInterval = setInterval(updateTimer, 1000);
-
-  watchId = navigator.geolocation.watchPosition(updatePosition, (err) => {
-    alert("GPS error: " + err.message);
-  }, {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 0
-  });
+function getDistanceFromLatLonInMi(lat1, lon1, lat2, lon2) {
+  const R = 3958.8; // Radius of the earth in miles
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c;
+  return d;
 }
 
-function stopTest() {
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  clearInterval(timerInterval);
-  if (watchId) {
-    navigator.geolocation.clearWatch(watchId);
-    watchId = null;
-  }
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
 }
