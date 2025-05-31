@@ -2,58 +2,109 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Pack Test Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f2f8fc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin-top: 20px;
+      font-size: 1.8em;
+      color: #004d80;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 20px;
+      width: 90%;
+      max-width: 400px;
+    }
+
+    .metric {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .metric span {
+      display: block;
+      font-size: 1.2em;
+      color: #0077b6;
+    }
+
+    .metric label {
+      font-size: 0.85em;
+      color: #444;
+    }
+
+    .buttons {
+      margin: 10px;
+      display: flex;
+      gap: 20px;
+    }
+
+    button {
+      padding: 12px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+      background-color: #0077b6;
+      transition: background-color 0.3s;
+    }
+
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #005f8a;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-900 font-sans">
-  <div class="max-w-md mx-auto p-4 space-y-4">
+<body>
+  <h1>Pack Test Tracker</h1>
 
-    <h1 class="text-2xl font-bold text-center text-teal-700">🏃 Pack Test Tracker</h1>
-
-    <div class="flex items-center justify-center space-x-2">
-      <label for="goalTime" class="text-sm">🎯 Goal (min):</label>
-      <input id="goalTime" type="number" value="45" min="1"
-        class="border text-center w-20 rounded p-1">
+  <div class="metrics">
+    <div class="metric">
+      <span id="distance">0.00</span>
+      <label>Distance (mi)</label>
     </div>
-
-    <div class="text-center space-x-4 text-sm">
-      <span>⏱ <span id="time">00:00</span></span>
-      <span>🏁 Pace: <span id="pace">--</span></span>
-      <span>🔁 Laps: <span id="laps">0</span>/12</span>
+    <div class="metric">
+      <span id="time">00:00</span>
+      <label>Time</label>
     </div>
-
-    <div class="relative w-full h-40 bg-white border rounded shadow overflow-hidden">
-      <svg viewBox="0 0 200 100" class="absolute w-full h-full">
-        <ellipse cx="100" cy="50" rx="90" ry="40" stroke="#ddd" stroke-width="4" fill="none"/>
-        <circle id="runnerDot" cx="100" cy="10" r="5" fill="teal" />
-        <line x1="100" y1="0" x2="100" y2="100" stroke="red" stroke-width="2"/>
-      </svg>
-      <div id="estimate-text" class="absolute inset-x-0 bottom-1 text-center font-semibold text-gray-800 text-lg">
-        Est. Finish: --:--
-      </div>
+    <div class="metric">
+      <span id="pace">0.00</span>
+      <label>Pace (min/mi)</label>
     </div>
-
-    <div>
-      <div class="text-xs text-gray-700 mb-1">Distance: <span id="distance-label">0.00 / 3.00 miles</span></div>
-      <div class="w-full h-4 bg-gray-300 rounded-full overflow-hidden">
-        <div id="distance-bar-fill" class="h-full bg-teal-600 transition-all w-0%"></div>
-      </div>
+    <div class="metric">
+      <span id="estimate">--:--</span>
+      <label>Est. Finish</label>
     </div>
-
-    <div>
-      <div class="text-xs text-gray-700 mb-1">Laps: <span id="lap-label">0 / 12 laps</span></div>
-      <div class="w-full h-4 bg-indigo-500/20 rounded-full overflow-hidden">
-        <div id="lap-bar-fill" class="h-full bg-indigo-600 transition-all w-0%"></div>
-      </div>
-    </div>
-
-    <div class="flex justify-center space-x-4 mt-4">
-      <button id="startBtn" class="bg-teal-600 hover:bg-teal-700 text-white py-2 px-4 rounded shadow">Start</button>
-      <button id="stopBtn" disabled class="bg-gray-400 text-white py-2 px-4 rounded shadow">Stop</button>
-    </div>
-
   </div>
+
+  <div class="buttons">
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>
