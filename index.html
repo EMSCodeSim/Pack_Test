@@ -8,24 +8,43 @@
 </head>
 <body>
   <div class="container">
-    <h1>Pack Test Tracker</h1>
+    <h1>🏃‍♂️ Pack Test Tracker</h1>
 
-    <svg id="trackSvg" viewBox="0 0 400 200" width="100%" height="200">
-      <ellipse cx="200" cy="100" rx="180" ry="80" fill="#f0f0f0" stroke="#888" stroke-width="4" />
-      <circle id="runnerDot" cx="200" cy="20" r="8" fill="red" />
-      <text id="estFinish" x="200" y="110" text-anchor="middle" font-size="22px" fill="#333">--:--</text>
-    </svg>
-
-    <div class="status">
-      <p><strong>Time:</strong> <span id="time">00:00</span></p>
-      <p><strong>Distance:</strong> <span id="distance">0.00</span> mi</p>
-      <p><strong>Laps:</strong> <span id="laps">0</span> / 12</p>
+    <div class="inputs">
+      🎯 Goal Time (min): 
+      <input type="number" id="goalTime" value="45" min="1" />
     </div>
 
-    <button id="startBtn">Start</button>
-    <button id="stopBtn" disabled>Stop</button>
+    <div class="oval-track">
+      <div id="progress-icon"></div>
+      <div id="estimate-text">Est. Finish: --:--</div>
+    </div>
+
+    <div class="progress-container">
+      <div class="label-row">
+        <span>Distance</span>
+        <span id="distance-label">0.00 / 3.00 miles</span>
+      </div>
+      <div class="progress-bar"><div id="distance-bar-fill" class="fill"></div></div>
+
+      <div class="label-row">
+        <span>Laps</span>
+        <span id="lap-label">0 / 12</span>
+      </div>
+      <div class="progress-bar"><div id="lap-bar-fill" class="fill blue"></div></div>
+    </div>
+
+    <div class="stats">
+      <div>⏱ Time: <span id="time">00:00</span></div>
+      <div>🏁 Pace: <span id="pace">--</span> min/mi</div>
+      <div>🔁 Laps: <span id="laps">0</span>/12</div>
+    </div>
+
+    <div class="buttons">
+      <button id="startBtn">Start</button>
+      <button id="stopBtn" disabled>Stop</button>
+    </div>
 
     <script src="app.js"></script>
-  </div>
 </body>
 </html>
