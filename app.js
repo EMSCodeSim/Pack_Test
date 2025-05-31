@@ -30,16 +30,20 @@ function startTest() {
   timerRunning = true;
   updateTimer();
 
-  if (!navigator.geolocation) {
-    alert("Geolocation not supported");
-    return;
-  }
-
   watchId = navigator.geolocation.watchPosition(updatePosition, showError, {
     enableHighAccuracy: true,
     maximumAge: 1000,
     timeout: 5000,
   });
+
+  if (!window.mapInitialized) {
+    const map = L.map('map').setView([0, 0], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+    window.map = map;
+    window.mapInitialized = true;
+  }
 
   document.getElementById("startBtn").disabled = true;
   document.getElementById("stopBtn").disabled = false;
@@ -63,18 +67,38 @@ function updateTimer() {
 
 function updatePosition(pos) {
   const { latitude, longitude, speed } = pos.coords;
+
   if (previousCoords) {
     const d = getDistanceFromLatLonInMi(previousCoords.latitude, previousCoords.longitude, latitude, longitude);
-    if (d < 0.0019) return;
+    if (d < 0.0019) return; // ignore small drift under 10 feet
     totalDistance += d;
     if (totalDistance >= (lapCount + 1) * 0.25) lapCount++;
   }
+
   previousCoords = { latitude, longitude };
 
+  // Update map
+  if (window.map) {
+    const latlng = [latitude, longitude];
+    window.map.setView(latlng);
+    if (!window.userMarker) {
+      window.userMarker = L.marker(latlng).addTo(window.map);
+    } else {
+      window.userMarker.setLatLng(latlng);
+    }
+  }
+
+  // Update visuals after 0.02 mi
   if (totalDistance < 0.02) return;
 
   const elapsedMin = (Date.now() - startTime) / 60000;
-  let pace = (speed && speed > 0) ? 26.8224 / speed : elapsedMin / totalDistance;
+  let pace;
+
+  if (speed && speed > 0) {
+    pace = 26.8224 / speed; // m/s to min/mile
+  } else {
+    pace = elapsedMin / totalDistance;
+  }
 
   paceSamples.push(pace);
   if (paceSamples.length > 5) paceSamples.shift();
@@ -91,7 +115,7 @@ function updatePosition(pos) {
   progressIcon.style.left = `${leftPercent}%`;
 
   lapsEl.textContent = lapCount;
-  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00 miles`;
+  distanceLabel.textContent = `${totalDistance.toFixed(2)} / 3.00`;
   lapLabel.textContent = `${lapCount} / 12 laps`;
   distanceBar.style.width = `${Math.min(100, (totalDistance / 3) * 100)}%`;
   lapBar.style.width = `${Math.min(100, (lapCount / 12) * 100)}%`;
