@@ -26,9 +26,17 @@ startBtn.onclick = () => {
   startBtn.disabled = true;
   stopBtn.disabled = false;
 
+  if (!navigator.geolocation) {
+    alert("Geolocation is not supported by your browser.");
+    return;
+  }
+
   watchID = navigator.geolocation.watchPosition(
     updatePosition,
-    (err) => alert("Geolocation error: " + err.message),
+    (err) => {
+      console.error("Geolocation error:", err);
+      alert("Unable to retrieve location. Check permissions.");
+    },
     { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
   );
 
@@ -54,11 +62,21 @@ function updateTimer() {
 function updatePosition(pos) {
   const { latitude, longitude } = pos.coords;
   const newPoint = { lat: latitude, lon: longitude };
+  console.log("GPS Update:", newPoint);
+
   positions.push(newPoint);
 
   if (positions.length > 5) {
     const d = calcDistance(positions[positions.length - 5], newPoint);
-    if (d > 0.001) distance += d;
+    if (d > 0.0001) {
+      distance += d;
+    } else {
+      console.log("Minimal movement, ignoring small shift.");
+    }
+  }
+
+  if (distance === 0) {
+    console.warn("Still at zero distance – are you moving or is GPS restricted?");
   }
 
   const elapsed = (Date.now() - startTime) / 1000;
@@ -83,7 +101,7 @@ function updateRunnerDot(progress) {
 }
 
 function calcDistance(p1, p2) {
-  const R = 3958.8;
+  const R = 3958.8; // miles
   const toRad = deg => deg * Math.PI / 180;
   const dLat = toRad(p2.lat - p1.lat);
   const dLon = toRad(p2.lon - p1.lon);
