@@ -17,6 +17,10 @@ const runnerDot = document.getElementById('runnerDot');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 
+// Attach listeners (compatible on iPhone and all devices)
+startBtn.addEventListener("click", startTest);
+stopBtn.addEventListener("click", stopTest);
+
 function formatTime(ms) {
   const min = Math.floor(ms / 60000);
   const sec = Math.floor((ms % 60000) / 1000).toString().padStart(2, '0');
@@ -31,13 +35,13 @@ function updateTimer() {
   const pace = totalDistance > 0 ? elapsed / 60000 / totalDistance : 0;
   paceDisplay.textContent = pace.toFixed(2);
 
-  const estFinishMin = pace * 3; // 3 miles target
+  const estFinishMin = pace * 3; // 3 miles
   estimateText.textContent = `Est. Finish: ${Math.floor(estFinishMin)}:${Math.round((estFinishMin % 1) * 60).toString().padStart(2, '0')}`;
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const toRad = deg => deg * Math.PI / 180;
-  const R = 3958.8; // miles
+  const R = 3958.8;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a = Math.sin(dLat / 2) ** 2 +
@@ -70,7 +74,7 @@ function updatePosition(pos) {
   const { latitude, longitude } = pos.coords;
   if (lastPos) {
     const dist = getDistance(lastPos.lat, lastPos.lon, latitude, longitude);
-    if (dist > 0.0001) { // filter GPS jitter
+    if (dist > 0.0001) {
       totalDistance += dist;
       lapCount = Math.floor(totalDistance / 0.25);
       updateDistanceUI();
@@ -79,7 +83,7 @@ function updatePosition(pos) {
   lastPos = { lat: latitude, lon: longitude };
 }
 
-startBtn.onclick = () => {
+function startTest() {
   if (!navigator.geolocation) {
     alert("Geolocation not supported");
     return;
@@ -102,9 +106,9 @@ startBtn.onclick = () => {
     timeout: 10000,
     maximumAge: 0
   });
-};
+}
 
-stopBtn.onclick = () => {
+function stopTest() {
   startBtn.disabled = false;
   stopBtn.disabled = true;
   clearInterval(timerInterval);
@@ -112,4 +116,4 @@ stopBtn.onclick = () => {
     navigator.geolocation.clearWatch(watchId);
     watchId = null;
   }
-};
+}
